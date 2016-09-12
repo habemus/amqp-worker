@@ -15,10 +15,6 @@ const DEFAULT_PUBLISH_OPTIONS = {
   contentEncoding: 'utf8',
 };
 
-function _array(obj) {
-  return Array.prototype.slice.call(obj, 0);
-}
-
 function _bufferize(data) {
   if (typeof data === 'string') {
     return new Buffer(data);
@@ -56,7 +52,10 @@ function HWorker(options, fn) {
 
   this.appId            = options.appId || uuid.v4();
 
-  // bind methods
+  // bind methods to the instance
+  this.handleMessage = this.handleMessage.bind(this);
+  this.handleError   = this.handleError.bind(this);
+
   this.log   = this.log.bind(this);
   this.info  = this.info.bind(this);
   this.warn  = this.warn.bind(this);
@@ -178,7 +177,7 @@ HWorker.prototype.handleMessage = function (message) {
   /**
    * Execute the worker function
    */
-  return this.fn(payload, this._makeLogger(), this)
+  return Bluebird.resolve(this.fn(payload, this))
     .then(this.respond.bind(this, message))
     .catch(this.handleError.bind(this, message));
 };
@@ -196,7 +195,7 @@ HWorker.prototype.respond = function (sourceMessage, result) {
     data: result,
   };
 
-  this.publishResult(sourceMessage, message);
+  this.publishUpdate(sourceMessage, message);
 };
 
 /**
@@ -205,7 +204,7 @@ HWorker.prototype.respond = function (sourceMessage, result) {
  * @param  {*} data
  * @param  {Object} options      
  */
-HWorker.prototype.publishResult = function (sourceMessage, data, options) {
+HWorker.prototype.publishUpdate = function (sourceMessage, data, options) {
 
   if (!sourceMessage || !sourceMessage.properties || !sourceMessage.properties.replyTo) {
     // ignore
@@ -221,10 +220,12 @@ HWorker.prototype.publishResult = function (sourceMessage, data, options) {
   options.messageId = uuid.v4();
   options.timestamp = Date.now();
   options.appId     = this.appId;
+  options.correlationId = sourceMessage.properties.messageId;
 
   return this.channel.publish(
     this.taskExchangeName,
     sourceMessage.properties.replyTo,
+    data,
     options
   );
 };

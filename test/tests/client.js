@@ -16,7 +16,7 @@ describe('client', function () {
     return aux.teardown();
   });
 
-  it('should work', function () {
+  it('should work', function (done) {
 
     this.timeout(10000);
 
@@ -32,6 +32,13 @@ describe('client', function () {
 
       console.log('dooo');
 
+    });
+
+    client.on('worker-update', (message) => {
+
+      console.log(message)
+
+      done();
     });
 
     return Bluebird.all([

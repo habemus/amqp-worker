@@ -1,3 +1,7 @@
+function _array(obj) {
+  return Array.prototype.slice.call(obj, 0);
+}
+
 /**
  * Publishses a 'info' level log
  * @param  {Object} sourceMessage
@@ -12,7 +16,7 @@ exports.log = exports.info = function (sourceMessage) {
     data: args.slice(1),
   };
 
-  this.publishResult(sourceMessage, message, {
+  this.publishUpdate(sourceMessage, message, {
     type: type
   });
 };
@@ -31,7 +35,7 @@ exports.warn = function (sourceMessage) {
     data: args.slice(1),
   };
 
-  this.publishResult(sourceMessage, message, {
+  this.publishUpdate(sourceMessage, message, {
     type: type
   });
 };
@@ -50,7 +54,7 @@ exports.error = function (sourceMessage) {
     data: args.slice(1),
   };
 
-  this.publishResult(sourceMessage, message, {
+  this.publishUpdate(sourceMessage, message, {
     type: type
   });
 };

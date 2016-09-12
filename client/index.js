@@ -27,6 +27,9 @@ function HWorkerClient(options) {
 
   this.appId            = options.appId || uuid.v4();
   this.resultsQueueName = taskName + '-results-' + this.appId;
+
+  // bind methods to the instance
+  this.handleUpdateMessage = this.handleUpdateMessage.bind(this);
 }
 
 util.inherits(HWorkerClient, EventEmitter);
@@ -75,6 +78,25 @@ HWorkerClient.prototype.connect = function () {
     .then(() => {
       this.channel = _channel;
 
+      // consume from the results queue
+      return this.channel.consume(resultsQueueName, this.handleUpdateMessage, {
+        /**
+         * Do not require ack, as the messages
+         * will not trigger actions from the server.
+         * @type {Boolean}
+         */
+        noAck: true,
+        /**
+         * Make sure it is an exclusive queue, so that
+         * only this client can consume from it.
+         *
+         * That is so because the updates are directed at the issuer
+         * 
+         * @type {Boolean}
+         */
+        exclusive: true,
+      });
+
       return this;
     });
 
@@ -107,7 +129,13 @@ HWorkerClient.prototype.scheduleRequest = function (data) {
   });
 };
 
-HWorkerClient.prototype._handleResultsQueueMessage = function (message) {
+HWorkerClient.prototype.handleUpdateMessage = function (message) {
+
+  if (!message) {
+    return;
+  }
+
+  this.emit('worker-update', message);
 
   console.log('received response queue message', message);
 };

@@ -12,7 +12,6 @@ exports.wait = function (ms) {
   });
 };
 
-
 var QUEUES    = [];
 var EXCHANGES = [];
 
@@ -54,15 +53,19 @@ exports.teardown = function () {
     .then((channel) => {
 
       var deleteQueuesPromises = QUEUES.map((queueName) => {
-        console.log('delelte queue', queueName);
+        // console.log('delete queue', queueName);
         return channel.deleteQueue(queueName);
       });
 
       var deleteExchangesPromises = EXCHANGES.map((exchangeName) => {
-        console.log('delelte exchange', exchangeName);
+        // console.log('delete exchange', exchangeName);
         return channel.deleteExchange(exchangeName);
       });
 
       return Bluebird.all(deleteQueuesPromises.concat(deleteExchangesPromises));
+    })
+    .catch((err) => {
+      console.warn(err);
+      throw err;
     });
 };

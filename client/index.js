@@ -26,7 +26,7 @@ function HWorkerClient(options) {
   this.taskQueueName    = taskName;
 
   this.appId            = options.appId || uuid.v4();
-  this.resultsQueueName = taskName + '-results-' + this.appId;
+  this.updatesQueueName = taskName + '-updates-' + this.appId;
 
   // bind methods to the instance
   this.handleUpdateMessage = this.handleUpdateMessage.bind(this);
@@ -39,7 +39,7 @@ HWorkerClient.prototype.connect = function () {
   var rabbitMQURI      = this.rabbitMQURI;
   var taskExchangeName = this.taskExchangeName;
   var taskQueueName    = this.taskQueueName;
-  var resultsQueueName = this.resultsQueueName;
+  var updatesQueueName = this.updatesQueueName;
 
   var _channel;
 
@@ -56,9 +56,9 @@ HWorkerClient.prototype.connect = function () {
          */
         channel.assertQueue(taskQueueName),
         /**
-         * Queue at which the results will be stored.
+         * Queue at which the updates will be stored.
          */
-        channel.assertQueue(resultsQueueName),
+        channel.assertQueue(updatesQueueName),
         /**
          * Exchange for both queues.
          */
@@ -69,17 +69,17 @@ HWorkerClient.prototype.connect = function () {
          */
         channel.bindQueue(taskQueueName, taskExchangeName, taskQueueName),
         /**
-         * Bind the resultsQueue to the exchange using
-         * the resultsQueueName itself as the routingKey
+         * Bind the updatesQueue to the exchange using
+         * the updatesQueueName itself as the routingKey
          */
-        channel.bindQueue(resultsQueueName, taskExchangeName, resultsQueueName)
+        channel.bindQueue(updatesQueueName, taskExchangeName, updatesQueueName)
       ]);
     })
     .then(() => {
       this.channel = _channel;
 
-      // consume from the results queue
-      return this.channel.consume(resultsQueueName, this.handleUpdateMessage, {
+      // consume from the updates queue
+      return this.channel.consume(updatesQueueName, this.handleUpdateMessage, {
         /**
          * Do not require ack, as the messages
          * will not trigger actions from the server.
@@ -121,7 +121,7 @@ HWorkerClient.prototype.scheduleRequest = function (data) {
     mandatory: true,
     contentType: 'application/json',
     contentEncoding: 'utf8',
-    replyTo: this.resultsQueueName,
+    replyTo: this.updatesQueueName,
     messageId: requestId,
     timestamp: Date.now(),
     type: 'job-request',
@@ -135,9 +135,31 @@ HWorkerClient.prototype.handleUpdateMessage = function (message) {
     return;
   }
 
-  this.emit('worker-update', message);
+  var payload;
 
-  console.log('received response queue message', message);
+  if (message.properties.contentType === 'application/json') {
+    payload = JSON.parse(message.content.toString());
+  } else {
+    payload = message.content;
+  }
+
+  switch (message.properties.type) {
+    case 'result':
+      this.emit('workload-result', payload);
+      break;
+    case 'log:info':
+      this.emit('workload-info', payload);
+      break;
+    case 'log:warning':
+      this.emit('workload-warning', payload);
+      break;
+    case 'log:error':
+      this.emit('workload-error', payload);
+      break;
+    default:
+      console.warn('unkown workload update type', message);
+      break;
+  }
 };
 
 module.exports = HWorkerClient;

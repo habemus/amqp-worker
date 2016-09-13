@@ -7,25 +7,7 @@ const amqplib  = require('amqplib');
 const Bluebird = require('bluebird');
 const uuid     = require('uuid');
 
-// constants
-const DEFAULT_PUBLISH_OPTIONS = {
-  persistent: true,
-  mandatory: false,
-  contentType: 'application/json',
-  contentEncoding: 'utf8',
-};
-
-function _bufferize(data) {
-  if (typeof data === 'string') {
-    return new Buffer(data);
-  } else if (data instanceof Object) {
-    return new Buffer(JSON.stringify(data));
-  } else {
-    throw new Error('unsupported data format', data);
-  }
-}
-
-function HWorker(options, fn) {
+function HWorkerServer(options, fn) {
   EventEmitter.call(this);
 
   if (!options.rabbitMQURI) {
@@ -62,16 +44,16 @@ function HWorker(options, fn) {
   this.error = this.error.bind(this);
 }
 
-util.inherits(HWorker, EventEmitter);
+util.inherits(HWorkerServer, EventEmitter);
 
 /**
  * Connects to the rabbitMQURI specified upon instantiation
  * creates a channel and sets up required topology
  * for the worker.
  * 
- * @return {Bluebird -> HWorker}
+ * @return {Bluebird -> HWorkerServer}
  */
-HWorker.prototype.connect = function () {
+HWorkerServer.prototype.connect = function () {
 
   var rabbitMQURI      = this.rabbitMQURI;
   var taskQueueName    = this.taskQueueName;
@@ -139,7 +121,7 @@ HWorker.prototype.connect = function () {
  * @param  {Object} message
  * @return {Bluebird}
  */
-HWorker.prototype.handleMessage = function (message) {
+HWorkerServer.prototype.handleMessage = function (message) {
 
   if (!message) {
     // empty messages should be ignored
@@ -183,54 +165,6 @@ HWorker.prototype.handleMessage = function (message) {
 };
 
 /**
- * Acks the sourceMessage and publishes the result
- * @param  {Object} sourceMessage
- * @param  {*} result
- */
-HWorker.prototype.respond = function (sourceMessage, result) {
-  this.channel.ack(message, false);
-
-  var message = {
-    type: 'rpc-response',
-    data: result,
-  };
-
-  this.publishUpdate(sourceMessage, message);
-};
-
-/**
- * Publishes a result for the given source message
- * @param  {Object} sourceMessage
- * @param  {*} data
- * @param  {Object} options      
- */
-HWorker.prototype.publishUpdate = function (sourceMessage, data, options) {
-
-  if (!sourceMessage || !sourceMessage.properties || !sourceMessage.properties.replyTo) {
-    // ignore
-    throw new Error('invalid sourceMessage missing properties.replyTo');
-  }
-
-  // make sure data is in buffer format
-  data = _bufferize(data);
-
-  // set default options for publishing
-  options = Object.assign({}, DEFAULT_PUBLISH_OPTIONS, options);
-
-  options.messageId = uuid.v4();
-  options.timestamp = Date.now();
-  options.appId     = this.appId;
-  options.correlationId = sourceMessage.properties.messageId;
-
-  return this.channel.publish(
-    this.taskExchangeName,
-    sourceMessage.properties.replyTo,
-    data,
-    options
-  );
-};
-
-/**
  * Handles an error.
  * By default nacks the sourceMessage and throws the error.
  * Should be implemented by actual workers.
@@ -238,7 +172,7 @@ HWorker.prototype.publishUpdate = function (sourceMessage, data, options) {
  * @param  {Object} sourceMessage
  * @param  {Error} err
  */
-HWorker.prototype.handleError = function (sourceMessage, err) {
+HWorkerServer.prototype.handleError = function (sourceMessage, err) {
   this.error(sourceMessage, err);
 
   this.channel.nack(sourceMessage, false, false);
@@ -246,6 +180,9 @@ HWorker.prototype.handleError = function (sourceMessage, err) {
   throw err;
 };
 
-Object.assign(HWorker.prototype, require('./logging'));
+/**
+ * Assign messaging methods to the HWorkerServer's prototype
+ */
+Object.assign(HWorkerServer.prototype, require('./messaging'));
 
-module.exports = HWorker;
+module.exports = HWorkerServer;

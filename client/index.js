@@ -116,7 +116,7 @@ HWorkerClient.prototype.scheduleRequest = function (data) {
   data = JSON.stringify(data);
   data = new Buffer(data);
 
-  return this.channel.publish(this.taskExchangeName, this.taskQueueName, data, {
+  var published = this.channel.publish(this.taskExchangeName, this.taskQueueName, data, {
     persistent: true,
     mandatory: true,
     contentType: 'application/json',
@@ -127,14 +127,20 @@ HWorkerClient.prototype.scheduleRequest = function (data) {
     type: 'job-request',
     appId: this.appId,
   });
+
+  // TBD: handle cases when published is false
+  // http://www.squaremobius.net/amqp.node/channel_api.html#channel_publish
+
+  return Bluebird.resolve(requestId);
 };
 
 HWorkerClient.prototype.handleUpdateMessage = function (message) {
 
-  if (!message) {
+  if (!message || !message.properties || !message.properties.correlationId) {
     return;
   }
 
+  var requestId = message.properties.correlationId;
   var payload;
 
   if (message.properties.contentType === 'application/json') {
@@ -145,16 +151,16 @@ HWorkerClient.prototype.handleUpdateMessage = function (message) {
 
   switch (message.properties.type) {
     case 'result':
-      this.emit('workload-result', payload);
+      this.emit('workload-result', requestId, payload);
       break;
     case 'log:info':
-      this.emit('workload-info', payload);
+      this.emit('workload-info', requestId, payload);
       break;
     case 'log:warning':
-      this.emit('workload-warning', payload);
+      this.emit('workload-warning', requestId, payload);
       break;
     case 'log:error':
-      this.emit('workload-error', payload);
+      this.emit('workload-error', requestId, payload);
       break;
     default:
       console.warn('unkown workload update type', message);

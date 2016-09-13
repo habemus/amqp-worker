@@ -159,7 +159,13 @@ HWorkerServer.prototype.handleMessage = function (message) {
   /**
    * Execute the worker function
    */
-  return Bluebird.resolve(this.fn(payload, this))
+  var logger = {};
+
+  logger.log = logger.info = this.log.bind(this, message);
+  logger.warn = this.warn.bind(this, message);
+  logger.error = this.error.bind(this, message);
+  
+  return Bluebird.resolve(this.fn(payload, logger))
     .then(this.respond.bind(this, message))
     .catch(this.handleError.bind(this, message));
 };

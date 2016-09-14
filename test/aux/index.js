@@ -14,6 +14,7 @@ exports.wait = function (ms) {
 
 var QUEUES    = [];
 var EXCHANGES = [];
+var CONNECTIONS = [];
 
 exports.registerQueueTeardown = function (queueName) {
   if (QUEUES.indexOf(queueName) === -1) {
@@ -26,6 +27,12 @@ exports.registerExchangeTeardown = function (exchangeName) {
     EXCHANGES.push(exchangeName);
   }
 };
+
+exports.registerConnectionTeardown = function (connection) {
+  if (CONNECTIONS.indexOf(connection) === -1) {
+    CONNECTIONS.push(connection);
+  }
+}
 
 exports.setup = function () {
 
@@ -46,8 +53,11 @@ exports.setup = function () {
 
 exports.teardown = function () {
 
+  var _connection;
+
   return Bluebird.resolve(amqplib.connect(RABBIT_MQ_URI))
     .then((connection) => {
+      _connection = connection;
       return connection.createChannel();
     })
     .then((channel) => {
@@ -62,10 +72,21 @@ exports.teardown = function () {
         return channel.deleteExchange(exchangeName);
       });
 
-      return Bluebird.all(deleteQueuesPromises.concat(deleteExchangesPromises));
+      var closeConnectionsPromises = CONNECTIONS.map((connection) => {
+        return connection.close();
+      });
+
+      return Bluebird.all(
+        deleteQueuesPromises
+          .concat(deleteExchangesPromises)
+          .concat(closeConnectionsPromises)
+      );
+    })
+    .then(() => {
+      return _connection.close();
     })
     .catch((err) => {
-      console.warn(err);
-      throw err;
+      // console.warn(err);
+      // throw err;
     });
 };

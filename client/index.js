@@ -7,11 +7,18 @@ const amqplib  = require('amqplib');
 const Bluebird = require('bluebird');
 const uuid     = require('uuid');
 
+// own
+const errors = require('../shared/errors');
+
+/**
+ * HWorkerClient constructor
+ * @param {Object} options
+ */
 function HWorkerClient(options) {
   EventEmitter.call(this);
 
-  if (!options.rabbitMQURI) {
-    throw new Error('rabbitMQURI is required');
+  if (!options || !options.rabbitMQURI) {
+    throw new errors.InvalidOption('rabbitMQURI', 'required');
   }
 
   this.rabbitMQURI = options.rabbitMQURI;
@@ -19,7 +26,7 @@ function HWorkerClient(options) {
   var taskName = this.taskName || options.taskName;
 
   if (!taskName) {
-    throw new Error('taskName is required');
+    throw new errors.InvalidOption('taskName', 'required');
   }
 
   this.taskExchangeName = taskName + '-exchange';
@@ -34,6 +41,19 @@ function HWorkerClient(options) {
 
 util.inherits(HWorkerClient, EventEmitter);
 
+/**
+ * Make errors available both in constructor as a static property
+ * and at the instance's protypical inheritance chain.
+ * 
+ * @type {Object}
+ */
+HWorkerClient.prototype.errors = errors;
+HWorkerClient.errors = errors;
+
+/**
+ * Connects to the rabbitMQ server specified upon instantiation
+ * @return {Bluebird -> self}
+ */
 HWorkerClient.prototype.connect = function () {
 
   var rabbitMQURI      = this.rabbitMQURI;
@@ -45,6 +65,9 @@ HWorkerClient.prototype.connect = function () {
 
   return amqplib.connect(rabbitMQURI)
     .then((connection) => {
+
+      this.connection = connection;
+
       return connection.createConfirmChannel();
     })
     .then((channel) => {
@@ -96,23 +119,21 @@ HWorkerClient.prototype.connect = function () {
          */
         exclusive: true,
       });
-
+    })
+    .then(() => {
       return this;
     });
 
 };
 
-HWorkerClient.prototype.scheduleRequest = function (data) {
+HWorkerClient.prototype.scheduleWorkloadRequest = function (data) {
   if (!this.channel) {
-    throw new Error('not connected');
-  }
-
-  if (!data) {
-    throw new Error('data is required');
+    throw new errors.NotConnected('not connected');
   }
 
   var requestId = uuid.v4();
 
+  data = data || {};
   data = JSON.stringify(data);
   data = new Buffer(data);
 
@@ -134,6 +155,13 @@ HWorkerClient.prototype.scheduleRequest = function (data) {
   return Bluebird.resolve(requestId);
 };
 
+/**
+ * Handles messages incoming from the rabbitMQ server
+ * 
+ * @param  {Object} message
+ *         - properties
+ *         - content
+ */
 HWorkerClient.prototype.handleUpdateMessage = function (message) {
 
   if (!message || !message.properties || !message.properties.correlationId) {
@@ -150,17 +178,20 @@ HWorkerClient.prototype.handleUpdateMessage = function (message) {
   }
 
   switch (message.properties.type) {
-    case 'result':
-      this.emit('workload-result', requestId, payload);
+    case 'result:success':
+      this.emit('workload-result:success', requestId, payload);
+      break;
+    case 'result:error':
+      this.emit('workload-result:error', requestId, payload);
       break;
     case 'log:info':
-      this.emit('workload-info', requestId, payload);
+      this.emit('workload-log:info', requestId, payload);
       break;
     case 'log:warning':
-      this.emit('workload-warning', requestId, payload);
+      this.emit('workload-log:warning', requestId, payload);
       break;
     case 'log:error':
-      this.emit('workload-error', requestId, payload);
+      this.emit('workload-log:error', requestId, payload);
       break;
     default:
       console.warn('unkown workload update type', message);

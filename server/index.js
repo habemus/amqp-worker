@@ -7,17 +7,42 @@ const amqplib  = require('amqplib');
 const Bluebird = require('bluebird');
 const uuid     = require('uuid');
 
+// own
+const errors = require('../shared/errors');
+
+/**
+ * HWorkerServer constructor function
+ * 
+ * @param {Object}   options
+ * @param {Function} fn
+ */
 function HWorkerServer(options, fn) {
   EventEmitter.call(this);
 
-  if (!options.rabbitMQURI) {
-    throw new Error('rabbitMQURI is required');
+  if (!options) {
+    throw new errors.InvalidOption('options', 'required');
   }
 
+  if (!options.rabbitMQURI) {
+    throw new errors.InvalidOption('rabbitMQURI', 'required');
+  }
+
+  /**
+   * The function that defines the workload.
+   * Should return a promise if it is asynchrnous.
+   *
+   * Receives the rabbitMQ's message payload as the first argument
+   * and a 'logger' object as the second argument.
+   *
+   * Has NO ACCESS to the HWorkerServer instance. It is called
+   * against 'null'
+   * 
+   * @type {Function}
+   */
   fn = fn || this.fn;
 
   if (typeof fn !== 'function') {
-    throw new TypeError('fn MUST be a Function');
+    throw new errors.InvalidOption('fn', 'required');
   }
 
   this.rabbitMQURI = options.rabbitMQURI;
@@ -26,7 +51,7 @@ function HWorkerServer(options, fn) {
   var taskName = this.taskName || options.taskName;
 
   if (!taskName) {
-    throw new Error('taskName is required');
+    throw new errors.InvalidOption('taskName', 'required');
   }
 
   this.taskExchangeName = taskName + '-exchange';
@@ -38,13 +63,21 @@ function HWorkerServer(options, fn) {
   this.handleMessage = this.handleMessage.bind(this);
   this.handleError   = this.handleError.bind(this);
 
-  this.log   = this.log.bind(this);
-  this.info  = this.info.bind(this);
-  this.warn  = this.warn.bind(this);
-  this.error = this.error.bind(this);
+  this.logInfo = this.logInfo.bind(this);
+  this.logWarning = this.logWarning.bind(this);
+  this.logError = this.logError.bind(this);
 }
 
 util.inherits(HWorkerServer, EventEmitter);
+
+/**
+ * Expose the errors object both in the protype chain
+ * and the HWorkerServer static properties
+ * 
+ * @type {Object}
+ */
+HWorkerServer.prototype.errors = errors;
+HWorkerServer.errors = errors;
 
 /**
  * Connects to the rabbitMQURI specified upon instantiation
@@ -63,6 +96,9 @@ HWorkerServer.prototype.connect = function () {
 
   return Bluebird.resolve(amqplib.connect(rabbitMQURI))
     .then((connection) => {
+
+      this.connection = connection;
+      
       return connection.createChannel();
     })
     .then((channel) => {
@@ -130,16 +166,8 @@ HWorkerServer.prototype.handleMessage = function (message) {
 
   var properties = message.properties;
 
-  if (!properties.contentType === 'application/json') {
-    this.error(message, new Error('unsupported content type'));
-
-    // message format is not supported,
-    // thus should be ignored.
-    // Do not requeue
-
-    // http://www.squaremobius.net/amqp.node/channel_api.html#channel_nack
-    // #nack(message, [allUpTo, [requeue]])
-    this.channel.nack(message, false, false);
+  if (properties.contentType !== 'application/json') {
+    this.respondError(message, new errors.UnsupportedContentType(properties.contentType));
 
     return;
   }
@@ -148,42 +176,37 @@ HWorkerServer.prototype.handleMessage = function (message) {
     var payload = JSON.parse(message.content.toString());
   } catch (e) {
 
-    this.error(message, e);
+    this.respondError(message, new errors.MalformedMessage(e.message));
 
-    // error parsing message contents
-    // should not requeue
-    this.channel.nack(message, false, false);
-
+    return;
   }
 
   /**
    * Execute the worker function
    */
-  var logger = {};
-
-  logger.log = logger.info = this.log.bind(this, message);
-  logger.warn = this.warn.bind(this, message);
-  logger.error = this.error.bind(this, message);
+  var logger = this._makeLogger(message);
   
-  return Bluebird.resolve(this.fn(payload, logger))
-    .then(this.respond.bind(this, message))
+  /**
+   * Ensure the function is invoked in a null context
+   * Wrap it with Bluebird.resolve, as to ensure
+   * its value is promise-chainable even if
+   * the function itself does not return a promise.
+   */
+  return Bluebird.try(this.fn.bind(null, payload, logger))
+    .then(this.respondSuccess.bind(this, message))
     .catch(this.handleError.bind(this, message));
 };
 
 /**
  * Handles an error.
- * By default nacks the sourceMessage and throws the error.
+ * By default nacks the sourceMessage and does not throw the error.
  * Should be implemented by actual workers.
  * 
  * @param  {Object} sourceMessage
  * @param  {Error} err
  */
 HWorkerServer.prototype.handleError = function (sourceMessage, err) {
-  this.error(sourceMessage, err);
-
-  this.channel.nack(sourceMessage, false, false);
-
-  throw err;
+  this.respondError(sourceMessage, err);
 };
 
 /**

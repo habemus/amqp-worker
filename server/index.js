@@ -14,9 +14,9 @@ const errors = require('../shared/errors');
  * HWorkerServer constructor function
  * 
  * @param {Object}   options
- * @param {Function} fn
+ * @param {Function} workerFn
  */
-function HWorkerServer(options, fn) {
+function HWorkerServer(options, workerFn) {
   EventEmitter.call(this);
 
   if (!options) {
@@ -39,14 +39,13 @@ function HWorkerServer(options, fn) {
    * 
    * @type {Function}
    */
-  fn = fn || this.fn;
+  this.workerFn = workerFn || this.workerFn;
 
-  if (typeof fn !== 'function') {
-    throw new errors.InvalidOption('fn', 'required');
+  if (typeof this.workerFn !== 'function') {
+    throw new errors.InvalidOption('workerFn', 'required');
   }
 
   this.rabbitMQURI = options.rabbitMQURI;
-  this.fn = fn;
 
   var taskName = this.taskName || options.taskName;
 
@@ -152,7 +151,7 @@ HWorkerServer.prototype.connect = function () {
  * If there is an error parsing the message as JSON,
  * nacks it and ignores it.
  *
- * Once message parsing is done, executes the worker's fn.
+ * Once message parsing is done, executes the worker's workerFn.
  * 
  * @param  {Object} message
  * @return {Bluebird}
@@ -187,12 +186,11 @@ HWorkerServer.prototype.handleMessage = function (message) {
   var logger = this._makeLogger(message);
   
   /**
-   * Ensure the function is invoked in a null context
-   * Wrap it with Bluebird.resolve, as to ensure
+   * Wrap it with Bluebird.try, as to ensure
    * its value is promise-chainable even if
    * the function itself does not return a promise.
    */
-  return Bluebird.try(this.fn.bind(null, payload, logger))
+  return Bluebird.try(this.workerFn.bind(this, payload, logger))
     .then(this.respondSuccess.bind(this, message))
     .catch(this.handleError.bind(this, message));
 };

@@ -18,7 +18,7 @@ describe('HWorkerClient initialization', function () {
 
   var BASE_OPTIONS = {
     rabbitMQURI: aux.rabbitMQURI,
-    taskName: 'test-task',
+    name: 'test-task',
   };
 
   it('should require options to be passed as the first argument', function () {
@@ -27,22 +27,10 @@ describe('HWorkerClient initialization', function () {
     }, HWorkerClient.errors.InvalidOption);
   });
 
-  it('should require rabbitMQURI option', function () {
-
+  it('should require a name option to be passed in the options object', function () {
     var opts = Object.assign({}, BASE_OPTIONS);
 
-    delete opts.rabbitMQURI;
-
-    assert.throws(function () {
-      var client = new HWorkerClient(opts);
-    }, HWorkerClient.errors.InvalidOption);
-
-  });
-
-  it('should require a taskName option to be passed in the options object', function () {
-    var opts = Object.assign({}, BASE_OPTIONS);
-
-    delete opts.taskName;
+    delete opts.name;
 
     assert.throws(function () {
 

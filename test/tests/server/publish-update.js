@@ -19,10 +19,9 @@ describe('HWorkerServer#publishUpdate', function () {
 
   it('should automatically set contentType for String to `text/plain`', function (done) {
 
-    var worker = new HWorkerServer({
-      rabbitMQURI: aux.rabbitMQURI,
-      taskName: 'test-task',
-    }, function () {});
+    var worker = new HWorkerServer(function () {}, {
+      name: 'test-task',
+    });
 
     // mock channel
     worker.channel = {
@@ -49,10 +48,9 @@ describe('HWorkerServer#publishUpdate', function () {
   });
 
   it('should automatically set contentType for Objects to `application/json`', function (done) {
-    var worker = new HWorkerServer({
-      rabbitMQURI: aux.rabbitMQURI,
-      taskName: 'test-task',
-    }, function () {});
+    var worker = new HWorkerServer(function () {}, {
+      name: 'test-task',
+    });
 
     // mock channel
     worker.channel = {
@@ -83,10 +81,9 @@ describe('HWorkerServer#publishUpdate', function () {
   });
 
   it('should treat everything else as string and, thus, `text/plain`', function (done) {
-    var worker = new HWorkerServer({
-      rabbitMQURI: aux.rabbitMQURI,
-      taskName: 'test-task',
-    }, function () {});
+    var worker = new HWorkerServer(function () {}, {
+      name: 'test-task',
+    });
 
     // mock channel
     worker.channel = {
@@ -114,10 +111,9 @@ describe('HWorkerServer#publishUpdate', function () {
   });
 
   it('should require a valid sourceMessage', function () {
-    var worker = new HWorkerServer({
-      rabbitMQURI: aux.rabbitMQURI,
-      taskName: 'test-task',
-    }, function () {});
+    var worker = new HWorkerServer(function () {}, {
+      name: 'test-task',
+    });
 
     // mock channel
     worker.channel = {

@@ -18,36 +18,23 @@ describe('HWorkerServer initialization', function () {
   });
 
   var BASE_OPTIONS = {
-    rabbitMQURI: aux.rabbitMQURI,
-    taskName: 'test-task',
+    name: 'test-task',
   };
 
   it('should require options to be passed as the first argument', function () {
     assert.throws(function () {
-      var worker = new HWorkerServer(undefined, function () {});
+      var worker = new HWorkerServer(function () {}, undefined);
     }, HWorkerServer.errors.InvalidOption);
   });
 
-  it('should require rabbitMQURI option', function () {
-
+  it('should require a name option to be passed in the options object', function () {
     var opts = Object.assign({}, BASE_OPTIONS);
 
-    delete opts.rabbitMQURI;
-
-    assert.throws(function () {
-      var worker = new HWorkerServer(opts, function workerFn() {});
-    }, HWorkerServer.errors.InvalidOption);
-
-  });
-
-  it('should require a taskName option to be passed in the options object', function () {
-    var opts = Object.assign({}, BASE_OPTIONS);
-
-    delete opts.taskName;
+    delete opts.name;
 
     assert.throws(function () {
 
-      var worker = new HWorkerServer(opts, function () {});
+      var worker = new HWorkerServer(function () {}, opts);
 
     }, HWorkerServer.errors.InvalidOption);
   });
@@ -58,7 +45,7 @@ describe('HWorkerServer initialization', function () {
     var opts = Object.assign({}, BASE_OPTIONS);
 
     assert.throws(function () {
-      var worker = new HWorkerServer(opts, undefined);
+      var worker = new HWorkerServer(undefined, opts);
     }, HWorkerServer.errors.InvalidOption);
   });
 });

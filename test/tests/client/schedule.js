@@ -6,7 +6,7 @@ const HWorkerClient = require('../../../client');
 
 const aux = require('../../aux');
 
-describe('HWorkerClient#scheduleWorkloadRequest', function () {
+describe('HWorkerClient#schedule', function () {
 
   beforeEach(function () {
     return aux.setup();
@@ -18,19 +18,19 @@ describe('HWorkerClient#scheduleWorkloadRequest', function () {
 
   var BASE_OPTIONS = {
     rabbitMQURI: aux.rabbitMQURI,
-    taskName: 'test-task',
+    name: 'test-task',
   };
 
   it('should the client to be connected before scheduling', function () {
 
     var client = new HWorkerClient({
       rabbitMQURI: aux.rabbitMQURI,
-      taskName: 'test-task',
+      name: 'test-task',
     });
 
     assert.throws(function () {
 
-      client.scheduleWorkloadRequest();
+      client.schedule();
 
     }, HWorkerClient.errors.NotConnected);
   });

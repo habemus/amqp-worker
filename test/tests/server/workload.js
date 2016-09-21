@@ -27,8 +27,7 @@ describe('HWorkerServer workload', function () {
       var REQUEST_ID = false;
 
       var client = new HWorkerClient({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
+        name: 'test-task',
       });
 
       /**
@@ -43,16 +42,15 @@ describe('HWorkerServer workload', function () {
           });
       }
 
-      var server = new HWorkerServer({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
-      }, testTaskFn);
+      var server = new HWorkerServer(testTaskFn, {
+        name: 'test-task',
+      });
 
-      client.on('workload-result:error', (requestId, errorData) => {
+      client.on('result:error', (requestId, errorData) => {
         done(errorData);
       });
 
-      client.on('workload-result:success', (requestId, result) => {
+      client.on('result:success', (requestId, result) => {
         result.should.eql({
           someKey: 'someValue-after-work'
         });
@@ -63,21 +61,21 @@ describe('HWorkerServer workload', function () {
       });
 
       Bluebird.all([
-        client.connect(),
-        server.connect(),
+        client.connect(aux.rabbitMQURI),
+        server.connect(aux.rabbitMQURI),
       ])
       .then(() => {
 
         // TEARDOWN
-        aux.registerQueueTeardown(client.taskQueueName);
+        aux.registerQueueTeardown(client.workerQueueName);
         aux.registerQueueTeardown(client.updatesQueueName);
 
-        aux.registerExchangeTeardown(client.taskExchangeName);
+        aux.registerExchangeTeardown(client.workerExchangeName);
 
         aux.registerConnectionTeardown(client.connection);
         aux.registerConnectionTeardown(server.connection);
 
-        return client.scheduleWorkloadRequest({
+        return client.schedule({
           someKey: 'someValue',
         });
       })
@@ -91,10 +89,9 @@ describe('HWorkerServer workload', function () {
 
       var ERROR_PUBLISHED = false;
 
-      var server = new HWorkerServer({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
-      }, function () {});
+      var server = new HWorkerServer(function () {}, {
+        name: 'test-task',
+      });
 
       // mock server's channel property
       server.channel = {
@@ -133,10 +130,9 @@ describe('HWorkerServer workload', function () {
 
       var ERROR_PUBLISHED = false;
 
-      var server = new HWorkerServer({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
-      }, function () {});
+      var server = new HWorkerServer(function () {}, {
+        name: 'test-task',
+      });
 
       // mock server's channel property
       server.channel = {
@@ -179,8 +175,7 @@ describe('HWorkerServer workload', function () {
       var REQUEST_ID = false;
 
       var client = new HWorkerClient({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
+        name: 'test-task',
       });
 
       /**
@@ -190,12 +185,11 @@ describe('HWorkerServer workload', function () {
         throw new Error('error!!!');
       }
 
-      var server = new HWorkerServer({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
-      }, testTaskFn);
+      var server = new HWorkerServer(testTaskFn, {
+        name: 'test-task',
+      });
 
-      client.on('workload-result:error', (requestId, errorData) => {
+      client.on('result:error', (requestId, errorData) => {
         requestId.should.eql(REQUEST_ID);
 
         errorData.message.should.eql('error!!!');
@@ -203,27 +197,27 @@ describe('HWorkerServer workload', function () {
         done();
       });
 
-      client.on('workload-result:success', (requestId, result) => {
+      client.on('result:success', (requestId, result) => {
 
         done(new Error('error expected'));
       });
 
       Bluebird.all([
-        client.connect(),
-        server.connect(),
+        client.connect(aux.rabbitMQURI),
+        server.connect(aux.rabbitMQURI),
       ])
       .then(() => {
 
         // TEARDOWN
-        aux.registerQueueTeardown(client.taskQueueName);
+        aux.registerQueueTeardown(client.workerQueueName);
         aux.registerQueueTeardown(client.updatesQueueName);
 
-        aux.registerExchangeTeardown(client.taskExchangeName);
+        aux.registerExchangeTeardown(client.workerExchangeName);
 
         aux.registerConnectionTeardown(client.connection);
         aux.registerConnectionTeardown(server.connection);
 
-        return client.scheduleWorkloadRequest({
+        return client.schedule({
           someKey: 'someValue',
         });
       })
@@ -245,14 +239,13 @@ describe('HWorkerServer workload', function () {
       var LOG_ERROR_COUNT = 0;
 
       var client = new HWorkerClient({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
+        name: 'test-task',
       });
 
       /**
        * Register info logs
        */
-      client.on('workload-log:info', function (requestId, data) {
+      client.on('log:info', function (requestId, data) {
 
         requestId.should.eql(REQUEST_ID);
         data.should.eql(['test-1', 'test-2', {
@@ -265,7 +258,7 @@ describe('HWorkerServer workload', function () {
       /**
        * Register warning logs
        */
-      client.on('workload-log:warning', function (requestId, data) {
+      client.on('log:warning', function (requestId, data) {
         requestId.should.eql(REQUEST_ID);
         data.should.eql(['warn-test-1', { warn: 'data' }]);
 
@@ -275,7 +268,7 @@ describe('HWorkerServer workload', function () {
       /**
        * Register error logs
        */
-      client.on('workload-log:error', function (requestId, data) {
+      client.on('log:error', function (requestId, data) {
         requestId.should.eql(REQUEST_ID);
 
         data.should.eql(['error-test-1', { error: 'data' }]);
@@ -283,7 +276,7 @@ describe('HWorkerServer workload', function () {
         LOG_ERROR_COUNT += 1;
       });
 
-      client.on('workload-result:error', function (requestId, data) {
+      client.on('result:error', function (requestId, data) {
         done(data);
       });
 
@@ -291,7 +284,7 @@ describe('HWorkerServer workload', function () {
        * Upon result arrival, check if all logs were correctly registered
        * and finish test
        */
-      client.on('workload-result:success', function (requestId, data) {
+      client.on('result:success', function (requestId, data) {
 
         LOG_INFO_COUNT.should.eql(2);
         LOG_WARNING_COUNT.should.eql(1);
@@ -334,27 +327,26 @@ describe('HWorkerServer workload', function () {
           });
       }
 
-      var server = new HWorkerServer({
-        rabbitMQURI: aux.rabbitMQURI,
-        taskName: 'test-task',
-      }, testTaskFn);
+      var server = new HWorkerServer(testTaskFn, {
+        name: 'test-task',
+      });
 
       Bluebird.all([
-        client.connect(),
-        server.connect(),
+        client.connect(aux.rabbitMQURI),
+        server.connect(aux.rabbitMQURI),
       ])
       .then(() => {
 
         // TEARDOWN
-        aux.registerQueueTeardown(client.taskQueueName);
+        aux.registerQueueTeardown(client.workerQueueName);
         aux.registerQueueTeardown(client.updatesQueueName);
 
-        aux.registerExchangeTeardown(client.taskExchangeName);
+        aux.registerExchangeTeardown(client.workerExchangeName);
 
         aux.registerConnectionTeardown(client.connection);
         aux.registerConnectionTeardown(server.connection);
 
-        return client.scheduleWorkloadRequest({
+        return client.schedule({
           someKey: 'someValue',
         });
       })

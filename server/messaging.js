@@ -189,7 +189,7 @@ exports.publishUpdate = function (sourceMessage, data, options) {
    * technically what is happening.
    */
   return this.channel.publish(
-    this.taskExchangeName,
+    '',
     sourceMessage.properties.replyTo,
     data,
     options

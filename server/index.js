@@ -13,19 +13,13 @@ const errors = require('../shared/errors');
 /**
  * HWorkerServer constructor function
  * 
- * @param {Object}   options
  * @param {Function} workerFn
+ * @param {Object}   options
  */
-function HWorkerServer(options, workerFn) {
+function HWorkerServer(workerFn, options) {
   EventEmitter.call(this);
 
-  if (!options) {
-    throw new errors.InvalidOption('options', 'required');
-  }
-
-  if (!options.rabbitMQURI) {
-    throw new errors.InvalidOption('rabbitMQURI', 'required');
-  }
+  options = options || {};
 
   /**
    * The function that defines the workload.
@@ -33,9 +27,6 @@ function HWorkerServer(options, workerFn) {
    *
    * Receives the rabbitMQ's message payload as the first argument
    * and a 'logger' object as the second argument.
-   *
-   * Has NO ACCESS to the HWorkerServer instance. It is called
-   * against 'null'
    * 
    * @type {Function}
    */
@@ -45,18 +36,22 @@ function HWorkerServer(options, workerFn) {
     throw new errors.InvalidOption('workerFn', 'required');
   }
 
-  this.rabbitMQURI = options.rabbitMQURI;
+  /**
+   * Name of the worker.
+   * Used to generate queue and exchange names.
+   * 
+   * @type {String}
+   */
+  this.name = options.name || this.name;
 
-  var taskName = this.taskName || options.taskName;
-
-  if (!taskName) {
-    throw new errors.InvalidOption('taskName', 'required');
+  if (!this.name) {
+    throw new errors.InvalidOption('name', 'required');
   }
 
-  this.taskExchangeName = taskName + '-exchange';
-  this.taskQueueName    = taskName;
+  this.workerExchangeName = this.name + '-exchange';
+  this.workerQueueName    = this.name;
 
-  this.appId            = options.appId || uuid.v4();
+  this.appId = options.appId || uuid.v4();
 
   // bind methods to the instance
   this.handleMessage = this.handleMessage.bind(this);
@@ -82,63 +77,75 @@ HWorkerServer.errors = errors;
  * Connects to the rabbitMQURI specified upon instantiation
  * creates a channel and sets up required topology
  * for the worker.
- * 
+ *
+ * If given a String, will assume it is an amqp URI and use
+ * amqplib.connect(uri) method to create a connection.
+ *
+ * If given a non-String, will assume it is an amqplib connection
+ * and use it straightforward.
+ *
+ * @param {String|Connection} connectionOrURI
  * @return {Bluebird -> HWorkerServer}
  */
-HWorkerServer.prototype.connect = function () {
+HWorkerServer.prototype.connect = function (connectionOrURI) {
 
-  var rabbitMQURI      = this.rabbitMQURI;
-  var taskQueueName    = this.taskQueueName;
-  var taskExchangeName = this.taskExchangeName;
+  if (!connectionOrURI) {
+    return Bluebird.reject(new errors.InvalidOption('connectionOrURI', 'required'));
+  }
+
+  var workerQueueName    = this.workerQueueName;
+  var workerExchangeName = this.workerExchangeName;
 
   var _channel;
 
-  return Bluebird.resolve(amqplib.connect(rabbitMQURI))
-    .then((connection) => {
+  var connectionPromise = (typeof connectionOrURI === 'string') ?
+    Bluebird.resolve(amqplib.connect(connectionOrURI)) :
+    Bluebird.resolve(connectionOrURI);
 
-      this.connection = connection;
-      
-      return connection.createChannel();
-    })
-    .then((channel) => {
-      _channel = channel;
+  return connectionPromise.then((connection) => {
+    this.connection = connection;
+    
+    return connection.createChannel();
+  })
+  .then((channel) => {
+    _channel = channel;
 
-      return Bluebird.all([
-        /**
-         * Queue at which task execution requests will be stored.
-         */
-        channel.assertQueue(taskQueueName),
-        /**
-         * Exchange for both queues.
-         */
-        channel.assertExchange(taskExchangeName, 'direct'),
-        /**
-         * Bind the taskQueue to the exchange using
-         * the taskQueueName itself as the routingKey
-         */
-        channel.bindQueue(taskQueueName, taskExchangeName, taskQueueName),
+    return Bluebird.all([
+      /**
+       * Queue at which task execution requests will be stored.
+       */
+      channel.assertQueue(workerQueueName),
+      /**
+       * Exchange for both queues.
+       */
+      channel.assertExchange(workerExchangeName, 'direct'),
+      /**
+       * Bind the workerQueue to the exchange using
+       * the workerQueueName itself as the routingKey
+       */
+      channel.bindQueue(workerQueueName, workerExchangeName, workerQueueName),
 
-      ]);
-    })
-    .then(() => {
-      this.channel = _channel;
+    ]);
+  })
+  .then(() => {
+    this.channel = _channel;
 
-      this.channel.consume(this.taskQueueName, this.handleMessage, {
-        /**
-         * Require ack
-         * @type {Boolean}
-         */
-        noAck: false,
-        /**
-         * Not exclusive, we want rabbitMQ to load balance
-         * messages among available worker instances.
-         * @type {Boolean}
-         */
-        exclusive: false,
-      });
-
-      return this;
+    this.channel.consume(this.workerQueueName, this.handleMessage, {
+      /**
+       * Require ack
+       * @type {Boolean}
+       */
+      noAck: false,
+      /**
+       * Not exclusive, we want rabbitMQ to load balance
+       * messages among available worker instances.
+       * @type {Boolean}
+       */
+      exclusive: false,
     });
+
+    return this;
+  });
 };
 
 /**

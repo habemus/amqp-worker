@@ -42,9 +42,9 @@ describe('HWorkerServer workload', function () {
           });
       }
 
-      var server = new HWorkerServer(testTaskFn, {
+      var server = new HWorkerServer({
         name: 'test-task',
-      });
+      }, testTaskFn);
 
       client.on('result:error', (requestId, errorData) => {
         done(errorData);
@@ -89,9 +89,9 @@ describe('HWorkerServer workload', function () {
 
       var ERROR_PUBLISHED = false;
 
-      var server = new HWorkerServer(function () {}, {
+      var server = new HWorkerServer({
         name: 'test-task',
-      });
+      }, function () {});
 
       // mock server's channel property
       server.channel = {
@@ -130,9 +130,9 @@ describe('HWorkerServer workload', function () {
 
       var ERROR_PUBLISHED = false;
 
-      var server = new HWorkerServer(function () {}, {
+      var server = new HWorkerServer({
         name: 'test-task',
-      });
+      }, function () {});
 
       // mock server's channel property
       server.channel = {
@@ -185,9 +185,9 @@ describe('HWorkerServer workload', function () {
         throw new Error('error!!!');
       }
 
-      var server = new HWorkerServer(testTaskFn, {
+      var server = new HWorkerServer({
         name: 'test-task',
-      });
+      }, testTaskFn);
 
       client.on('result:error', (requestId, errorData) => {
         requestId.should.eql(REQUEST_ID);
@@ -327,9 +327,9 @@ describe('HWorkerServer workload', function () {
           });
       }
 
-      var server = new HWorkerServer(testTaskFn, {
+      var server = new HWorkerServer({
         name: 'test-task',
-      });
+      }, testTaskFn);
 
       Bluebird.all([
         client.connect(aux.rabbitMQURI),

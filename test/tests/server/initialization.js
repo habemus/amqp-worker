@@ -23,7 +23,7 @@ describe('HWorkerServer initialization', function () {
 
   it('should require options to be passed as the first argument', function () {
     assert.throws(function () {
-      var worker = new HWorkerServer(function () {}, undefined);
+      var worker = new HWorkerServer(undefined, function () {});
     }, HWorkerServer.errors.InvalidOption);
   });
 
@@ -34,7 +34,7 @@ describe('HWorkerServer initialization', function () {
 
     assert.throws(function () {
 
-      var worker = new HWorkerServer(function () {}, opts);
+      var worker = new HWorkerServer(opts, function () {});
 
     }, HWorkerServer.errors.InvalidOption);
   });
@@ -45,7 +45,7 @@ describe('HWorkerServer initialization', function () {
     var opts = Object.assign({}, BASE_OPTIONS);
 
     assert.throws(function () {
-      var worker = new HWorkerServer(undefined, opts);
+      var worker = new HWorkerServer(opts, undefined);
     }, HWorkerServer.errors.InvalidOption);
   });
 });

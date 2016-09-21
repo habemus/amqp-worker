@@ -13,10 +13,10 @@ const errors = require('../shared/errors');
 /**
  * HWorkerServer constructor function
  * 
- * @param {Function} workerFn
  * @param {Object}   options
+ * @param {Function} workerFn
  */
-function HWorkerServer(workerFn, options) {
+function HWorkerServer(options, workerFn) {
   EventEmitter.call(this);
 
   options = options || {};

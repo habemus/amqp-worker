@@ -19,9 +19,9 @@ describe('HWorkerServer#publishUpdate', function () {
 
   it('should automatically set contentType for String to `text/plain`', function (done) {
 
-    var worker = new HWorkerServer(function () {}, {
+    var worker = new HWorkerServer({
       name: 'test-task',
-    });
+    }, function () {});
 
     // mock channel
     worker.channel = {
@@ -48,9 +48,9 @@ describe('HWorkerServer#publishUpdate', function () {
   });
 
   it('should automatically set contentType for Objects to `application/json`', function (done) {
-    var worker = new HWorkerServer(function () {}, {
+    var worker = new HWorkerServer({
       name: 'test-task',
-    });
+    }, function () {});
 
     // mock channel
     worker.channel = {
@@ -81,9 +81,9 @@ describe('HWorkerServer#publishUpdate', function () {
   });
 
   it('should treat everything else as string and, thus, `text/plain`', function (done) {
-    var worker = new HWorkerServer(function () {}, {
+    var worker = new HWorkerServer({
       name: 'test-task',
-    });
+    }, function () {});
 
     // mock channel
     worker.channel = {
@@ -111,9 +111,9 @@ describe('HWorkerServer#publishUpdate', function () {
   });
 
   it('should require a valid sourceMessage', function () {
-    var worker = new HWorkerServer(function () {}, {
+    var worker = new HWorkerServer({
       name: 'test-task',
-    });
+    }, function () {});
 
     // mock channel
     worker.channel = {

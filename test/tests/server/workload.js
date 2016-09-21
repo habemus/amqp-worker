@@ -68,7 +68,7 @@ describe('HWorkerServer workload', function () {
 
         // TEARDOWN
         aux.registerQueueTeardown(client.workerQueueName);
-        aux.registerQueueTeardown(client.updatesQueueName);
+        aux.registerQueueTeardown(client.replyTo);
 
         aux.registerExchangeTeardown(client.workerExchangeName);
 
@@ -210,7 +210,7 @@ describe('HWorkerServer workload', function () {
 
         // TEARDOWN
         aux.registerQueueTeardown(client.workerQueueName);
-        aux.registerQueueTeardown(client.updatesQueueName);
+        aux.registerQueueTeardown(client.replyTo);
 
         aux.registerExchangeTeardown(client.workerExchangeName);
 
@@ -339,7 +339,7 @@ describe('HWorkerServer workload', function () {
 
         // TEARDOWN
         aux.registerQueueTeardown(client.workerQueueName);
-        aux.registerQueueTeardown(client.updatesQueueName);
+        aux.registerQueueTeardown(client.replyTo);
 
         aux.registerExchangeTeardown(client.workerExchangeName);
 

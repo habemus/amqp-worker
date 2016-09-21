@@ -28,8 +28,7 @@ function HWorkerClient(options) {
   this.workerExchangeName = this.name + '-exchange';
   this.workerQueueName    = this.name;
 
-  this.appId            = options.appId || uuid.v4();
-  this.updatesQueueName = this.name + '-updates-' + this.appId;
+  this.replyTo = options.replyTo || this.name + '-results';
 
   // bind methods to the instance
   this.handleUpdateMessage = this.handleUpdateMessage.bind(this);
@@ -68,7 +67,7 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
 
   var workerExchangeName = this.workerExchangeName;
   var workerQueueName    = this.workerQueueName;
-  var updatesQueueName   = this.updatesQueueName;
+  var replyTo            = this.replyTo;
 
   var _channel;
 
@@ -93,7 +92,7 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
       /**
        * Queue at which the updates will be stored.
        */
-      channel.assertQueue(updatesQueueName),
+      channel.assertQueue(replyTo),
       /**
        * Exchange for both queues.
        */
@@ -109,7 +108,7 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
     this.channel = _channel;
 
     // consume from the updates queue
-    return this.channel.consume(updatesQueueName, this.handleUpdateMessage, {
+    return this.channel.consume(replyTo, this.handleUpdateMessage, {
       /**
        * Do not require ack, as the messages
        * will not trigger actions from the server.
@@ -149,7 +148,7 @@ HWorkerClient.prototype.schedule = function (data) {
     mandatory: true,
     contentType: 'application/json',
     contentEncoding: 'utf8',
-    replyTo: this.updatesQueueName,
+    replyTo: this.replyTo,
     messageId: requestId,
     timestamp: Date.now(),
     type: 'work-request',

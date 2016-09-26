@@ -71,10 +71,12 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
 
   var _channel;
 
+  // check the type of the connection and act accordingly
   var connectionPromise = (typeof connectionOrURI === 'string') ?
     Bluebird.resolve(amqplib.connect(connectionOrURI)) :
     Bluebird.resolve(connectionOrURI);
 
+  // wait for connection to be ready
   return connectionPromise.then((connection) => {
 
     this.connection = connection;
@@ -115,15 +117,6 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
        * @type {Boolean}
        */
       noAck: true,
-      /**
-       * Make sure it is an exclusive queue, so that
-       * only this client can consume from it.
-       *
-       * That is so because the updates are directed at the issuer
-       * 
-       * @type {Boolean}
-       */
-      exclusive: true,
     });
   })
   .then(() => {

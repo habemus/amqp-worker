@@ -144,6 +144,9 @@ exports.publishUpdate = function (sourceMessage, data, options) {
 
   var contentType;
 
+  // data MUST NOT BE undefined
+  data = data || '';
+
   // make sure data is in buffer format
   if (typeof data === 'string') {
     contentType = 'text/plain';

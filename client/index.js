@@ -108,6 +108,13 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
   })
   .then(() => {
     this.channel = _channel;
+    
+    // propagate events
+    function propagateChannelEvents(eventName, e) {
+      this.emit('channel-' + eventName, e);
+    }
+    this.channel.on('close', propagateChannelEvents.bind(this, 'close'));
+    this.channel.on('error', propagateChannelEvents.bind(this, 'error'));
 
     // consume from the updates queue
     return this.channel.consume(replyTo, this.handleUpdateMessage, {

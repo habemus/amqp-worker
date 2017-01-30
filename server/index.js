@@ -60,6 +60,8 @@ function HWorkerServer(options, workerFn) {
   this.logInfo = this.logInfo.bind(this);
   this.logWarning = this.logWarning.bind(this);
   this.logError = this.logError.bind(this);
+
+  this.prefetch = options.prefetch || this.prefetch;
 }
 
 util.inherits(HWorkerServer, EventEmitter);
@@ -72,6 +74,16 @@ util.inherits(HWorkerServer, EventEmitter);
  */
 HWorkerServer.prototype.errors = errors;
 HWorkerServer.errors = errors;
+
+/**
+ * Quantity of messages to be pre fetched.
+ *
+ * http://www.squaremobius.net/amqp.node/channel_api.html#channel_prefetch
+ *
+ * @default 1
+ * @type {Number}
+ */
+HWorkerServer.prototype.prefetch = 1;
 
 /**
  * Connects to the rabbitMQURI specified upon instantiation
@@ -110,21 +122,24 @@ HWorkerServer.prototype.connect = function (connectionOrURI) {
   .then((channel) => {
     _channel = channel;
 
+    return _channel.prefetch(this.prefetch, true);
+
+  })
+  .then(() => {
     return Bluebird.all([
       /**
        * Queue at which task execution requests will be stored.
        */
-      channel.assertQueue(workerQueueName),
+      _channel.assertQueue(workerQueueName),
       /**
        * Exchange for both queues.
        */
-      channel.assertExchange(workerExchangeName, 'direct'),
+      _channel.assertExchange(workerExchangeName, 'direct'),
       /**
        * Bind the workerQueue to the exchange using
        * the workerQueueName itself as the routingKey
        */
-      channel.bindQueue(workerQueueName, workerExchangeName, workerQueueName),
-
+      _channel.bindQueue(workerQueueName, workerExchangeName, workerQueueName),
     ]);
   })
   .then(() => {

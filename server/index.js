@@ -4,7 +4,6 @@ const util = require('util');
 
 // third-party
 const amqplib  = require('amqplib');
-const Bluebird = require('bluebird');
 const uuid     = require('uuid');
 
 // own
@@ -97,12 +96,12 @@ HWorkerServer.prototype.prefetch = 1;
  * and use it straightforward.
  *
  * @param {String|Connection} connectionOrURI
- * @return {Bluebird -> HWorkerServer}
+ * @return {Promise -> HWorkerServer}
  */
 HWorkerServer.prototype.connect = function (connectionOrURI) {
 
   if (!connectionOrURI) {
-    return Bluebird.reject(new errors.InvalidOption('connectionOrURI', 'required'));
+    return Promise.reject(new errors.InvalidOption('connectionOrURI', 'required'));
   }
 
   var workerQueueName    = this.workerQueueName;
@@ -111,8 +110,8 @@ HWorkerServer.prototype.connect = function (connectionOrURI) {
   var _channel;
 
   var connectionPromise = (typeof connectionOrURI === 'string') ?
-    Bluebird.resolve(amqplib.connect(connectionOrURI)) :
-    Bluebird.resolve(connectionOrURI);
+    Promise.resolve(amqplib.connect(connectionOrURI)) :
+    Promise.resolve(connectionOrURI);
 
   return connectionPromise.then((connection) => {
     this.connection = connection;
@@ -126,7 +125,7 @@ HWorkerServer.prototype.connect = function (connectionOrURI) {
 
   })
   .then(() => {
-    return Bluebird.all([
+    return Promise.all([
       /**
        * Queue at which task execution requests will be stored.
        */
@@ -183,7 +182,7 @@ HWorkerServer.prototype.connect = function (connectionOrURI) {
  * Once message parsing is done, executes the worker's workerFn.
  * 
  * @param  {Object} message
- * @return {Bluebird}
+ * @return {Promise}
  */
 HWorkerServer.prototype.handleMessage = function (message) {
 
@@ -215,13 +214,19 @@ HWorkerServer.prototype.handleMessage = function (message) {
   var logger = this._makeLogger(message);
   
   /**
-   * Wrap it with Bluebird.try, as to ensure
+   * Wrap it with a Promise, as to ensure
    * its value is promise-chainable even if
    * the function itself does not return a promise.
    */
-  return Bluebird.try(this.workerFn.bind(this, payload, logger))
-    .then(this.respondSuccess.bind(this, message))
-    .catch(this.handleError.bind(this, message));
+  return new Promise((resolve, reject) => {
+    try {
+      resolve(this.workerFn(payload, logger))
+    } catch (err) {
+      reject(err)
+    }
+  })
+  .then(this.respondSuccess.bind(this, message))
+  .catch(this.handleError.bind(this, message));
 };
 
 /**

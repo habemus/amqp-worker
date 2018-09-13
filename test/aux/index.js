@@ -1,13 +1,12 @@
 // third-party
-const Bluebird = require('bluebird');
-const amqplib  = require('amqplib');
+const amqplib = require('amqplib');
 
-const RABBIT_MQ_URI = 'amqp://192.168.99.100';
+const RABBIT_MQ_URI = 'amqp://localhost';
 
 exports.rabbitMQURI = RABBIT_MQ_URI;
 
 exports.wait = function (ms) {
-  return new Bluebird((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     setTimeout(resolve, ms);
   });
 };
@@ -38,7 +37,7 @@ exports.setup = function () {
 
   var _assets = {};
 
-  return Bluebird.resolve(amqplib.connect(RABBIT_MQ_URI))
+  return Promise.resolve(amqplib.connect(RABBIT_MQ_URI))
     .then((connection) => {
       _assets.rabbitMQConnection = connection;
 
@@ -55,7 +54,7 @@ exports.teardown = function () {
 
   var _connection;
 
-  return Bluebird.resolve(amqplib.connect(RABBIT_MQ_URI))
+  return Promise.resolve(amqplib.connect(RABBIT_MQ_URI))
     .then((connection) => {
       _connection = connection;
       return connection.createChannel();
@@ -76,7 +75,7 @@ exports.teardown = function () {
         return connection.close();
       });
 
-      return Bluebird.all(
+      return Promise.all(
         deleteQueuesPromises
           .concat(deleteExchangesPromises)
           .concat(closeConnectionsPromises)

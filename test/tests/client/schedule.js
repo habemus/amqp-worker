@@ -1,6 +1,5 @@
 const assert = require('assert');
 const should = require('should');
-const Bluebird = require('bluebird');
 
 const HWorkerClient = require('../../../client');
 

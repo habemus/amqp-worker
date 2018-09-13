@@ -3,9 +3,8 @@ const EventEmitter = require('events').EventEmitter;
 const util = require('util');
 
 // third-party
-const amqplib  = require('amqplib');
-const Bluebird = require('bluebird');
-const uuid     = require('uuid');
+const amqplib = require('amqplib');
+const uuid    = require('uuid');
 
 // own
 const errors = require('../shared/errors');
@@ -57,12 +56,12 @@ HWorkerClient.errors = errors;
  * and use it straightforward.
  *
  * @param {String|Connection} connectionOrURI
- * @return {Bluebird -> self}
+ * @return {Promise -> self}
  */
 HWorkerClient.prototype.connect = function (connectionOrURI) {
 
   if (!connectionOrURI) {
-    return Bluebird.reject(new errors.InvalidOption('connectionOrURI', 'required'));
+    return Promise.reject(new errors.InvalidOption('connectionOrURI', 'required'));
   }
 
   var workerExchangeName = this.workerExchangeName;
@@ -73,8 +72,8 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
 
   // check the type of the connection and act accordingly
   var connectionPromise = (typeof connectionOrURI === 'string') ?
-    Bluebird.resolve(amqplib.connect(connectionOrURI)) :
-    Bluebird.resolve(connectionOrURI);
+    Promise.resolve(amqplib.connect(connectionOrURI)) :
+    Promise.resolve(connectionOrURI);
 
   // wait for connection to be ready
   return connectionPromise.then((connection) => {
@@ -86,7 +85,7 @@ HWorkerClient.prototype.connect = function (connectionOrURI) {
   .then((channel) => {
     _channel = channel;
 
-    return Bluebird.all([
+    return Promise.all([
       /**
        * Queue at which execution requests will be stored.
        */
@@ -158,7 +157,7 @@ HWorkerClient.prototype.schedule = function (data) {
   // TBD: handle cases when published is false
   // http://www.squaremobius.net/amqp.node/channel_api.html#channel_publish
 
-  return Bluebird.resolve(requestId);
+  return Promise.resolve(requestId);
 };
 
 /**

@@ -1,5 +1,4 @@
 const should = require('should');
-const Bluebird = require('bluebird');
 
 const amqplib = require('amqplib');
 
@@ -60,7 +59,7 @@ describe('HWorkerServer workload', function () {
         done();
       });
 
-      Bluebird.all([
+      Promise.all([
         client.connect(aux.rabbitMQURI),
         server.connect(aux.rabbitMQURI),
       ])
@@ -202,7 +201,7 @@ describe('HWorkerServer workload', function () {
         done(new Error('error expected'));
       });
 
-      Bluebird.all([
+      Promise.all([
         client.connect(aux.rabbitMQURI),
         server.connect(aux.rabbitMQURI),
       ])
@@ -331,7 +330,7 @@ describe('HWorkerServer workload', function () {
         name: 'test-task',
       }, testTaskFn);
 
-      Bluebird.all([
+      Promise.all([
         client.connect(aux.rabbitMQURI),
         server.connect(aux.rabbitMQURI),
       ])
